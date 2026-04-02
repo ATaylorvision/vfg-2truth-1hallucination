@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two Truths and a Hallucination</title>
+<style>
+  :root {
+    --brand: #5B4FE8;
+    --brand-light: #7B72F0;
+    --success: #06C270;
+    --success-bg: #E8FBF3;
+    --error: #FF3B3B;
+    --error-bg: #FFF0F0;
+    --warn-bg: #FFF8E7;
+    --neutral: #F4F3FF;
+    --text: #1A1535;
+    --text-muted: #6B6891;
+    --border: #E8E6FF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ── LAYOUT ── */
+  .screen { display: none; width: 100%; height: 100%; }
+  .screen.active { display: flex; flex-direction: column; animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+  /* ── WELCOME ── */
+  #screen-welcome { padding: 28px 28px 24px; justify-content: center; }
+  .w-title { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.2; margin-bottom: 4px; }
+  .w-title span { color: var(--brand); }
+  .w-bar { width: 36px; height: 3px; background: linear-gradient(90deg, var(--brand), var(--brand-light)); border-radius: 100px; margin: 10px 0 16px; }
+  .dir-box { background: var(--neutral); border-radius: 8px; padding: 14px 16px; margin-bottom: 18px; }
+  .dir-box h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--brand); margin-bottom: 10px; }
+  .dir-item { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 7px; font-size: 12px; color: var(--text); line-height: 1.5; }
+  .dir-item:last-child { margin-bottom: 0; }
+  .dir-n { width: 18px; height: 18px; min-width: 18px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .btn-start { background: linear-gradient(135deg, var(--brand), var(--brand-light)); color: #fff; font-size: 14px; font-weight: 700; padding: 11px 28px; border-radius: 100px; border: none; cursor: pointer; box-shadow: 0 3px 12px rgba(91,79,232,0.35); transition: all .2s; align-self: flex-start; }
+  .btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(91,79,232,0.4); }
+
+  /* ── GAME HEADER ── */
+  .g-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .g-prog-label { font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+  .g-bar-wrap { flex: 1; height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; }
+  .g-bar-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--brand-light)); border-radius: 100px; transition: width .4s ease; }
+  .g-score { background: var(--neutral); border-radius: 100px; padding: 3px 10px; font-size: 11px; font-weight: 700; color: var(--brand); white-space: nowrap; }
+
+  /* ── GAME BODY ── */
+  .g-body { flex: 1; overflow-y: auto; padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  .q-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .q-eye { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--brand); margin-bottom: 6px; }
+  .q-scene { font-size: 12px; color: var(--text-muted); line-height: 1.6; border-left: 2px solid var(--brand-light); padding-left: 10px; margin-bottom: 10px; }
+  .q-prompt { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.35; }
+
+  .out-card { background: #fff; border: 2px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s, opacity .2s; }
+  .out-card:hover:not(.disabled) { border-color: var(--brand-light); transform: translateY(-1px); box-shadow: 0 2px 10px rgba(91,79,232,0.1); }
+  .out-card.disabled { cursor: default; pointer-events: none; }
+  .out-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .out-text { font-size: 12px; color: var(--text); line-height: 1.6; }
+  .out-card.sel-correct { border-color: var(--success); background: var(--success-bg); }
+  .out-card.sel-correct .out-lbl { color: var(--success); }
+  .out-card.sel-wrong { border-color: var(--error); background: var(--error-bg); }
+  .out-card.sel-wrong .out-lbl { color: var(--error); }
+  .out-card.reveal { border-color: var(--success); background: var(--success-bg); }
+  .out-card.reveal .out-lbl { color: var(--success); }
+  .out-card.dimmed { opacity: .35; }
+
+  .fb-panel { border-radius: 8px; padding: 12px 14px; animation: slideIn .2s ease; }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+  .fb-panel.correct { background: var(--success-bg); border: 1.5px solid var(--success); }
+  .fb-panel.incorrect { background: var(--warn-bg); border: 1.5px solid #FFD93D; }
+  .fb-tag { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; border-radius: 100px; padding: 2px 8px; margin-bottom: 4px; }
+  .fb-panel.correct .fb-tag { background: #D1FAE5; color: #057A45; }
+  .fb-panel.incorrect .fb-tag { background: #FFF3CD; color: #92660A; }
+  .fb-title { font-size: 12px; font-weight: 800; margin-bottom: 4px; }
+  .fb-panel.correct .fb-title { color: #057A45; }
+  .fb-panel.incorrect .fb-title { color: #92660A; }
+  .fb-body { font-size: 12px; line-height: 1.65; color: var(--text); }
+
+  .btn-next { background: linear-gradient(135deg, var(--brand), var(--brand-light)); color: #fff; font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 100px; border: none; cursor: pointer; box-shadow: 0 3px 10px rgba(91,79,232,0.3); transition: all .2s; align-self: flex-start; }
+  .btn-next:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(91,79,232,0.38); }
+  .btn-finish { background: linear-gradient(135deg, #06C270, #04a85e); color: #fff; font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 100px; border: none; cursor: pointer; box-shadow: 0 3px 10px rgba(6,194,112,0.35); transition: all .2s; align-self: flex-start; }
+  .btn-finish:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(6,194,112,0.4); }
+
+  /* ── RESULTS ── */
+  #screen-results { padding: 20px 20px 24px; overflow-y: auto; }
+  .r-banner { background: var(--success-bg); border: 1.5px solid var(--success); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; text-align: center; }
+  .r-banner-icon { font-size: 26px; margin-bottom: 4px; }
+  .r-banner h2 { font-size: 16px; font-weight: 800; color: #057A45; margin-bottom: 2px; }
+  .r-banner p { font-size: 12px; color: #057A45; }
+  .r-score-wrap { text-align: center; margin-bottom: 14px; }
+  .r-score-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 2px; }
+  .r-score-num { font-size: 60px; font-weight: 900; color: var(--brand); line-height: 1; }
+  .r-score-sub { font-size: 13px; color: var(--text-muted); }
+  .r-headline { font-size: 15px; font-weight: 800; color: var(--text); text-align: center; margin-bottom: 2px; }
+  .r-msg { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 16px; }
+  .r-takeaway { background: var(--neutral); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--brand); margin-bottom: 16px; }
+  .r-takeaway h3 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--brand); margin-bottom: 6px; }
+  .r-takeaway p { font-size: 12px; line-height: 1.7; color: var(--text); }
+  .btn-replay { background: var(--neutral); color: var(--brand); font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 100px; border: 2px solid var(--border); cursor: pointer; transition: all .2s; display: block; margin: 0 auto; }
+  .btn-replay:hover { background: #ebe9ff; }
+</style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div id="screen-welcome" class="screen active">
+  <div class="w-title">Two Truths and a <span>Hallucination</span></div>
+  <div class="w-bar"></div>
+  <div class="dir-box">
+    <h2>How It Works</h2>
+    <div class="dir-item"><div class="dir-n">1</div><div>Read the scenario and the three AI outputs carefully.</div></div>
+    <div class="dir-item"><div class="dir-n">2</div><div>Click the output you think is the most inaccurate, biased, or unreliable.</div></div>
+    <div class="dir-item"><div class="dir-n">3</div><div>You'll get coaching feedback explaining what made that output problematic.</div></div>
+    <div class="dir-item"><div class="dir-n">4</div><div>After question 10, click Finish to see your final score.</div></div>
+  </div>
+  <button class="btn-start" onclick="startGame()">Start Module &rarr;</button>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="g-header">
+    <div class="g-prog-label" id="prog-label">Question 1 of 10</div>
+    <div class="g-bar-wrap"><div class="g-bar-fill" id="prog-bar" style="width:10%"></div></div>
+    <div class="g-score" id="g-score">&#10003; 0 Correct</div>
+  </div>
+  <div class="g-body" id="g-body">
+    <div class="q-card">
+      <div class="q-eye" id="q-eye"></div>
+      <div class="q-scene" id="q-scene"></div>
+      <div class="q-prompt" id="q-prompt"></div>
+    </div>
+    <div id="outputs"></div>
+    <div id="feedback"></div>
+    <div id="action"></div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="screen-results" class="screen">
+  <div class="r-banner">
+    <div class="r-banner-icon">&#127881;</div>
+    <h2>Module Complete!</h2>
+    <p>You've finished all 10 questions.</p>
+  </div>
+  <div class="r-score-wrap">
+    <div class="r-score-lbl">Your Score</div>
+    <div class="r-score-num" id="r-score">0</div>
+    <div class="r-score-sub">out of 10</div>
+  </div>
+  <div class="r-headline" id="r-headline"></div>
+  <div class="r-msg" id="r-msg"></div>
+  <div class="r-takeaway">
+    <h3>&#128273; Key Takeaway</h3>
+    <p>AI can be useful, but it is not a source of truth. Hallucinations, bias, and flawed reasoning can appear in confident-sounding outputs. Before acting on AI-generated content, always apply human judgment — verify facts, question assumptions, and watch for what sounds plausible but isn't actually supported.</p>
+  </div>
+  <button class="btn-replay" onclick="replayGame()">&#8617; Play Again</button>
+</div>
+
+<script>
+var Q = [
+  {
+    eye:"Scenario: Research Summary",
+    scene:"A team member used AI to summarize recent research on employee engagement. The AI produced three summaries to choose from.",
+    prompt:"Which of these AI-generated summaries is most likely to be hallucinated or unreliable?",
+    outputs:[
+      "Studies consistently show that employees who feel recognized at work report higher job satisfaction, lower turnover intent, and stronger team cohesion. Recognition programs vary in effectiveness depending on implementation and organizational culture.",
+      "A landmark 2021 Gallup meta-analysis of 47 studies found that daily micro-recognition boosts productivity by exactly 34% across all industries and company sizes, making it the single most evidence-backed HR intervention available.",
+      "Research suggests that flexible work arrangements can positively influence engagement, though outcomes depend on role type, manager support, and individual preferences. More longitudinal data is still emerging in this area."
+    ],
+    correct:1, tag:"Hallucination",
+    cFb:"Output B is the most problematic. It invents a specific '34% productivity boost' and attributes it to a 'landmark 2021 Gallup meta-analysis of 47 studies' — a citation that doesn't exist in that form. The false specificity is a classic hallucination pattern: AI generating plausible-sounding statistics without a real source.",
+    wFb:{0:"Output A makes general, reasonable claims without inventing statistics. Output B cites a specific percentage and named study with suspicious precision — that false specificity is a hallucination red flag.",2:"Output C acknowledges uncertainty, which is well-calibrated. Output B claims a precise '34%' boost 'across all industries' — a universal, perfectly round statistic from a vaguely named study is a strong hallucination signal."}
+  },
+  {
+    eye:"Scenario: Hiring Recommendation",
+    scene:"A manager asked an AI tool to help evaluate two candidates after reviewing their application materials.",
+    prompt:"Which AI output reflects the most problematic bias or flawed reasoning?",
+    outputs:[
+      "Both candidates show strong qualifications. Candidate 1 has more direct experience in the role's primary responsibilities, while Candidate 2 brings a broader skill set. The decision may depend on whether the team needs depth or versatility right now.",
+      "Candidate 2 attended a smaller, less well-known university, which often correlates with less rigorous academic preparation. Candidate 1's degree from a larger institution likely reflects stronger critical thinking skills and professional readiness.",
+      "It's worth noting that both candidates have gaps in their work history. Before making a decision, it would be helpful to understand the context of those gaps, as circumstances vary widely and gaps alone are not disqualifying."
+    ],
+    correct:1, tag:"Bias Detected",
+    cFb:"Output B contains clear institutional bias. It assumes a smaller university means less rigorous preparation — a stereotype with no factual basis — then leaps from 'school size' to 'critical thinking skills.' In hiring contexts, AI bias like this can have real consequences for fairness and equity.",
+    wFb:{0:"Output A compares qualifications fairly without assumptions. Output B assumes a smaller university means 'less rigorous academic preparation' — an unfounded stereotype that could lead to discriminatory hiring decisions.",2:"Output C responsibly recommends getting context before judging gaps. Output B makes biased assumptions about university prestige and links school size to 'critical thinking skills' without any factual basis."}
+  },
+  {
+    eye:"Scenario: Customer Email Draft",
+    scene:"A customer service rep asked AI to draft a response to a frustrated customer who claimed they were overcharged.",
+    prompt:"Which AI-drafted email response is most problematic?",
+    outputs:[
+      "Thank you for reaching out. I understand your frustration and want to make this right. I'll review your account and get back to you within one business day with a full explanation and next steps.",
+      "We're sorry for any confusion. Our billing system is among the most accurate in the industry, with a 99.97% error-free rate verified by independent auditors, so while we'll look into this, overcharges are extremely rare.",
+      "Thank you for letting us know. We take billing concerns seriously. Could you please share the invoice or transaction in question so we can investigate promptly?"
+    ],
+    correct:1, tag:"Hallucinated Claim",
+    cFb:"Output B invents a specific statistic — '99.97% error-free rate verified by independent auditors' — to defend the company before any investigation. The AI fabricated a credibility-boosting number. Sending this to a customer could be misleading or legally problematic.",
+    wFb:{0:"Output A is empathetic and makes no false claims. Output B invents a '99.97% error-free rate' — a fabricated statistic. Sending made-up numbers in customer communications is a real risk when AI content isn't reviewed.",2:"Output C is clear and professional. Output B invents a specific accuracy statistic ('99.97% verified by independent auditors') that the AI almost certainly fabricated."}
+  },
+  {
+    eye:"Scenario: Market Trend Analysis",
+    scene:"A team lead asked an AI tool to interpret recent sales data and identify trends.",
+    prompt:"Which AI-generated trend interpretation is most flawed or misleading?",
+    outputs:[
+      "Sales in Q3 declined 12% compared to Q2. This could reflect seasonal patterns, changes in customer demand, or market conditions. Additional context — such as competitor activity and marketing spend — would help determine the underlying cause.",
+      "The Q3 decline is clearly the result of the new pricing strategy implemented in August. Customer data consistently confirms that price sensitivity is the dominant driver, and the trend will reverse once pricing is corrected.",
+      "While the Q3 numbers are down, it's worth comparing them to the same period last year before drawing conclusions. Year-over-year comparisons often provide more meaningful context than sequential quarter comparisons."
+    ],
+    correct:1, tag:"Unsupported Conclusion",
+    cFb:"Output B oversteps what the data can tell us. It declares the cause with certainty ('clearly the result of'), claims 'customer data consistently confirms' something never provided, and predicts the future with false confidence. Correlation is being presented as proven causation.",
+    wFb:{0:"Output A is well-reasoned — it identifies the data point, offers multiple explanations, and calls for more context. Output B declares a single cause as certain ('clearly') without the evidence to support it.",2:"Output C is a smart methodological suggestion. Output B uses 'clearly' and 'consistently confirms' to present an unsupported causal claim as established fact."}
+  },
+  {
+    eye:"Scenario: Policy Recommendation",
+    scene:"An HR team asked AI to recommend approaches for reducing burnout among remote employees.",
+    prompt:"Which recommendation is most problematic?",
+    outputs:[
+      "Strategies that tend to help include clear boundary-setting between work and personal time, regular manager check-ins, and ensuring employees have adequate workload coverage during time off. Effectiveness varies by individual and team context.",
+      "Research from the Harvard Business Review's 2023 Remote Work Index conclusively shows that four-day work weeks eliminate burnout entirely in remote settings. Companies that have not yet adopted this policy are falling behind industry standards.",
+      "Burnout is multifactorial, so a combination of approaches may be needed. Surveying employees directly about their experience can help identify which specific factors — workload, autonomy, recognition, or connection — are most relevant in your organization."
+    ],
+    correct:1, tag:"Hallucination + Overstatement",
+    cFb:"Output B has two serious problems: it references a 'Harvard Business Review 2023 Remote Work Index' that doesn't exist, and claims four-day work weeks 'eliminate burnout entirely' — an overstatement no real research supports. The confident framing makes the fabrication harder to catch.",
+    wFb:{0:"Output A is practical and doesn't overclaim. Output B invents an HBR index that doesn't exist, then claims four-day work weeks 'eliminate burnout entirely' — a fabricated citation plus an extreme overstatement.",2:"Output C correctly frames burnout as multifactorial. Output B invents a named research source and makes an absolute claim that no credible research supports."}
+  },
+  {
+    eye:"Scenario: Vendor Comparison",
+    scene:"A product manager asked AI to help compare two software vendors based on general product descriptions.",
+    prompt:"Which comparison output contains the most problematic reasoning?",
+    outputs:[
+      "Based on the descriptions provided, Vendor A appears stronger in reporting features, while Vendor B offers more flexibility in integrations. However, the right choice will depend on your team's specific workflow, budget, and long-term needs.",
+      "Vendor A is the clear winner. Their platform has consistently been rated #1 by industry analysts for three consecutive years, and their customer retention rate of 94.2% significantly outpaces Vendor B's. Choosing Vendor B would be a risky decision for any growth-stage company.",
+      "It may be useful to request product demos and reference calls from both vendors before deciding. Feature comparisons are helpful, but hands-on evaluation and peer feedback tend to surface issues that written descriptions miss."
+    ],
+    correct:1, tag:"Fabricated Evidence",
+    cFb:"Output B fabricates authoritative-sounding evidence. The '#1 analyst rating for three years' and '94.2% retention rate' are invented — the AI was only given general descriptions and couldn't know these figures. This is AI manufacturing competitive intelligence to support a predetermined conclusion.",
+    wFb:{0:"Output A draws cautious conclusions from limited information. Output B invents specific rankings and a '94.2%' retention rate that couldn't possibly come from a general product description.",2:"Output C gives excellent advice. Output B fabricates industry rankings and a precise retention rate the AI invented entirely."}
+  },
+  {
+    eye:"Scenario: Training Recommendation",
+    scene:"A learning and development manager asked AI to suggest training formats for a new onboarding cohort.",
+    prompt:"Which recommendation is most problematic?",
+    outputs:[
+      "A blended approach combining self-paced modules with live sessions tends to work well for onboarding. The ideal balance depends on the complexity of the role, the team's learning preferences, and available manager bandwidth.",
+      "Peer-based cohort learning is worth considering for building team connection alongside skills. Pairing new employees with a buddy or mentor during the first 30 days can also ease the transition and reduce time-to-productivity.",
+      "Video-based microlearning has been proven by neuroscience to increase knowledge retention by 65% compared to traditional training formats. Any onboarding program that does not include microlearning will result in significantly higher attrition within the first year."
+    ],
+    correct:2, tag:"False Claim + Overstatement",
+    cFb:"Output C makes two unsupported claims. The '65% retention increase proven by neuroscience' is fabricated — no consensus finding assigns that number to microlearning. The prediction that programs without it 'will result in significantly higher attrition' is an unsubstantiated absolute.",
+    wFb:{0:"Output A acknowledges context and doesn't overclaim. Output C invents a '65% retention increase proven by neuroscience' and makes an unqualified attrition prediction with no real evidence.",1:"Output B is practical and well-regarded. Output C attributes a specific '65%' figure to 'neuroscience' and makes an absolute attrition prediction that no recommendation can support."}
+  },
+  {
+    eye:"Scenario: Feedback Coaching",
+    scene:"A manager asked AI to help give feedback to a team member who missed a project deadline.",
+    prompt:"Which AI-drafted feedback approach is most problematic?",
+    outputs:[
+      "When delivering this feedback, focus on the specific impact of the missed deadline on the team and project timeline. Invite the employee to share what happened, then work together on what support or adjustments might help going forward.",
+      "Be direct and factual: name the deadline, the impact, and what you need going forward. Framing it as a shared problem-solving conversation rather than a criticism can help the employee stay open to feedback.",
+      "Employees who miss deadlines typically do so because of poor personal organization or lack of commitment. It's important to make clear that this behavior reflects poorly on their professionalism, and that repeated occurrences may affect their career trajectory here."
+    ],
+    correct:2, tag:"Bias + Harmful Assumption",
+    cFb:"Output C opens with a biased generalization — that deadline misses 'typically' come from 'poor personal organization or lack of commitment.' This ignores legitimate causes like workload imbalance or unclear expectations. It then recommends shaming language, which research shows is counterproductive.",
+    wFb:{0:"Output A is collaborative and focuses on impact. Output C assumes the employee missed the deadline due to 'poor organization or lack of commitment' — an unfair assumption that bypasses the real cause.",1:"Output B is direct and constructive. Output C makes sweeping character assumptions and recommends shaming language that often backfires."}
+  },
+  {
+    eye:"Scenario: Content Summarization",
+    scene:"A content team asked AI to summarize the key argument of a report on remote work productivity.",
+    prompt:"Which summary is most likely to misrepresent the source material?",
+    outputs:[
+      "The report suggests that remote work can maintain or improve productivity for many knowledge workers, though outcomes vary significantly by role, team structure, and individual circumstances. The authors call for more longitudinal research.",
+      "According to the report, productivity among remote workers increased by an average of 22% globally in 2022, settling the long-running debate over remote work effectiveness. The authors conclude that in-office work is now considered obsolete for most professional roles.",
+      "The report presents mixed findings. While some metrics showed improvement in remote settings, others declined, and the authors caution against drawing universal conclusions without accounting for organizational culture and job type."
+    ],
+    correct:1, tag:"Distorted Summary",
+    cFb:"Output B fabricates both data and conclusion. The '22% global increase' is invented. Worse, it claims the report 'settles the debate' and that in-office work is 'now obsolete' — extreme conclusions almost certainly not in the source. AI summarization like this can completely distort a document's message.",
+    wFb:{0:"Output A conveys qualified findings and notes the authors' call for more research. Output B invents a '22% global increase' and declares in-office work 'obsolete' — far beyond what the report likely says.",2:"Output C reflects the mixed findings typical of this research area. Output B replaces nuance with a fabricated statistic and a definitive conclusion that misrepresents the source."}
+  },
+  {
+    eye:"Scenario: Strategic Decision Support",
+    scene:"A leadership team asked AI to weigh in on whether to expand into a new market based on preliminary data.",
+    prompt:"Which AI output is most problematic as decision support?",
+    outputs:[
+      "The preliminary data shows some encouraging signals, but a more thorough market analysis — including competitive landscape, regulatory environment, and customer demand validation — would be needed before making a confident recommendation.",
+      "Based on the data provided, this market expansion represents a strong opportunity. Companies that delay entering emerging markets typically lose first-mover advantage permanently, and the risk of inaction now outweighs the risk of moving forward.",
+      "It may be worth stress-testing the assumptions in the preliminary data. Forecasts at this stage often reflect optimism bias, and a scenario analysis covering best-case, base-case, and downside outcomes could help the team make a more informed decision."
+    ],
+    correct:1, tag:"False Urgency",
+    cFb:"Output B uses false urgency to push toward a decision. 'Companies that delay typically lose first-mover advantage permanently' is a sweeping assertion not grounded in the data — a business trope AI reproduces as fact. It frames inaction as categorically riskier without any supporting analysis.",
+    wFb:{0:"Output A responsibly identifies what additional analysis is needed. Output B invokes 'first-mover advantage' as certainty and frames inaction as categorically risky without real evidence — persuasion dressed as analysis.",2:"Output C is excellent decision support. Output B short-circuits careful analysis by declaring the opportunity 'strong' and invoking urgency without evidence."}
+  }
+];
+
+var cur = 0, score = 0;
+
+function startGame() {
+  cur = 0; score = 0;
+  show('screen-game');
+  render();
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+
+function render() {
+  var q = Q[cur];
+  document.getElementById('prog-label').textContent = 'Question ' + (cur+1) + ' of 10';
+  document.getElementById('prog-bar').style.width = ((cur+1)/10*100) + '%';
+  document.getElementById('g-score').textContent = '\u2713 ' + score + ' Correct';
+  document.getElementById('q-eye').textContent = q.eye;
+  document.getElementById('q-scene').textContent = q.scene;
+  document.getElementById('q-prompt').textContent = q.prompt;
+
+  var out = document.getElementById('outputs');
+  out.innerHTML = '';
+  out.style.display = 'flex';
+  out.style.flexDirection = 'column';
+  out.style.gap = '8px';
+  for (var i = 0; i < q.outputs.length; i++) {
+    (function(idx){
+      var d = document.createElement('div');
+      d.className = 'out-card';
+      d.innerHTML = '<div class="out-lbl">Output ' + ['A','B','C'][idx] + '</div><div class="out-text">' + q.outputs[idx] + '</div>';
+      d.onclick = function(){ pick(idx); };
+      out.appendChild(d);
+    })(i);
+  }
+  document.getElementById('feedback').innerHTML = '';
+  document.getElementById('action').innerHTML = '';
+}
+
+function pick(idx) {
+  var q = Q[cur];
+  var cards = document.querySelectorAll('.out-card');
+  cards.forEach(function(c){ c.classList.add('disabled'); });
+
+  if (idx === q.correct) {
+    score++;
+    cards[idx].classList.add('sel-correct');
+    cards.forEach(function(c,i){ if(i!==idx) c.classList.add('dimmed'); });
+    fb(true, q.tag, q.cFb);
+  } else {
+    cards[idx].classList.add('sel-wrong');
+    cards[q.correct].classList.add('reveal');
+    cards.forEach(function(c,i){ if(i!==idx && i!==q.correct) c.classList.add('dimmed'); });
+    fb(false, "Not This One", q.wFb[idx] || "See the highlighted correct answer above.");
+  }
+
+  var a = document.getElementById('action');
+  if (cur < 9) {
+    a.innerHTML = '<button class="btn-next" onclick="goNext()">Next Question &rarr;</button>';
+  } else {
+    a.innerHTML = '<button class="btn-finish" onclick="goFinish()">&#10003; Finish Module</button>';
+  }
+
+  setTimeout(function(){
+    var body = document.getElementById('g-body');
+    body.scrollTop = body.scrollHeight;
+  }, 100);
+}
+
+function fb(correct, tag, msg) {
+  var el = document.getElementById('feedback');
+  var cls = correct ? 'correct' : 'incorrect';
+  var icon = correct ? '&#9989;' : '&#128161;';
+  var title = correct ? 'Nice Catch' : "Here's Why";
+  el.innerHTML = '<div class="fb-panel ' + cls + '"><div class="fb-tag">' + tag + '</div><div class="fb-title">' + icon + ' ' + title + '</div><div class="fb-body">' + msg + '</div></div>';
+}
+
+function goNext() {
+  cur++;
+  render();
+  document.getElementById('g-body').scrollTop = 0;
+}
+
+function goFinish() {
+  document.getElementById('r-score').textContent = score;
+  var h, m;
+  if(score>=9){h='Outstanding!';m='You have a sharp eye for AI risks. Excellent critical thinking.';}
+  else if(score>=7){h='Great Work!';m='You caught most of the problematic outputs. Keep honing your AI literacy.';}
+  else if(score>=5){h='Good Effort!';m="You're building your AI awareness. Review the coaching notes to sharpen your instincts.";}
+  else{h='Keep Learning!';m='This topic takes practice. Revisit the coaching explanations to strengthen your skills.';}
+  document.getElementById('r-headline').textContent = h;
+  document.getElementById('r-msg').textContent = m;
+  show('screen-results');
+}
+
+function replayGame() { startGame(); }
+</script>
+</body>
+</html>
