@@ -21,14 +21,15 @@
     --radius-sm: 10px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: #ffffff;
-    color: var(--text);
-    height: 1200px;
-    overflow: hidden;
-  }
-  body { padding: 24px 20px; }
+html, body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #ffffff;
+  color: var(--text);
+  min-height: 100%;
+  overflow-y: auto;
+  width: 100%;
+}
+body { padding: 24px 20px; }
 
   .screen { display: none; width: 100%; max-width: 720px; margin: 0 auto; }
   .screen.active { display: block; animation: fadeIn .3s ease; }
